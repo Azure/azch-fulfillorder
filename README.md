@@ -1,5 +1,29 @@
+# FulfillOrder
 
-# Contributing
+A containerised Go swagger API to fulfill orders and commit them to MongoDB
+
+## Environment Variables
+
+The following environment variables need to be passed to the container:
+
+### ACK Logging
+
+```
+ENV TEAMNAME=[YourTeamName]
+```
+
+### For Mongo
+
+```
+ENV MONGOURL="mongodb://[mongoinstance].[namespace]"
+```
+
+### File mount
+```
+/orders
+```
+
+## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
