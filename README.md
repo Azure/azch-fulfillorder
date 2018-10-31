@@ -2,6 +2,8 @@
 
 A containerised Go swagger API to fulfill orders and commit them to MongoDB
 
+[![Build Status](https://dev.azure.com/theazurechallenge/Kubernetes/_apis/build/status/Azure%20organization/Azure.azch-fulfillorder)](https://dev.azure.com/theazurechallenge/Kubernetes/_build/latest?definitionId=11)
+
 ## Environment Variables
 
 The following environment variables need to be passed to the container:
