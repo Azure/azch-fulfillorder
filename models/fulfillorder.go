@@ -244,10 +244,9 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 	// Issue a `Sync` to flush writes to stable storage.
 	err = f.Sync()
 	if err != nil {
-		log.Println(e)
-		trackException(e)
-	}
-	else {
+		log.Println(err)
+		trackException(err)
+	} else {
 		eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder fileshare")
 		eventTelemetry.Properties["team"] = teamname
 		eventTelemetry.Properties["sequence"] = "5"
