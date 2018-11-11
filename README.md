@@ -1,23 +1,37 @@
 # FulfillOrder
 
-A containerised Go swagger API to fulfill orders and commit them to MongoDB
-
 [![Build Status](https://dev.azure.com/theazurechallenge/Kubernetes/_apis/build/status/Code/Azure.azch-fulfillorder)](https://dev.azure.com/theazurechallenge/Kubernetes/_build/latest?definitionId=11)
+
+A containerised Go swagger API to fulfill orders and commit them to MongoDB.
+
+## Usage
+
+### Swagger
+
+Access the Swagger UI at [http://[host]/swagger]()
 
 ## Environment Variables
 
 The following environment variables need to be passed to the container:
 
-### ACK Logging
+### Logging
 
 ```
 ENV TEAMNAME=[YourTeamName]
+ENV APPINSIGHTS_KEY=[YourCustomApplicationInsightsKey] # Optional, create your own App Insights resource
+ENV CHALLENGEAPPINSIGHTS_KEY=[Challenge Application Insights Key] # Override, if given one by the proctors
 ```
 
-### For Mongo
+### For MongoDB
 
 ```
-ENV MONGOURL="mongodb://[mongoinstance].[namespace]"
+ENV MONGOURL=mongodb://[mongoinstance].[namespace]
+```
+
+### For CosmosDB
+
+```
+ENV MONGOURL=mongodb://[CosmosDBInstanceName]:[CosmosDBPrimaryPassword]=@[CosmosDBInstanceName].documents.azure.com:10255/?ssl=true&replicaSet=globaldb
 ```
 
 ### File mount

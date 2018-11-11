@@ -26,6 +26,8 @@ COPY --from=builder /go/src/fulfillorderack .
 # Define environment variables
 # Application Insights
 ENV APPINSIGHTS_KEY=
+
+# PLEASE DO NOT OVERRIDE UNLESS INSTRUCTED BY PROCTORS
 ENV CHALLENGEAPPINSIGHTS_KEY=23c6b1ec-ca92-4083-86b6-eba851af9032
 
 # Challenge Logging
@@ -33,6 +35,7 @@ ENV TEAMNAME=
 
 # Mongo/Cosmos
 ENV MONGOURL=
+
 
 # Expose the application on port 8080
 EXPOSE 8080

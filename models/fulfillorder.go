@@ -25,7 +25,8 @@ var (
 
 var db string
 
-var insightskey = "23c6b1ec-ca92-4083-86b6-eba851af9032"
+var customInsightsKey = os.Getenv("APPINSIGHTS_KEY")
+var challengeInsightsKey = os.Getenv("CHALLENGEAPPINSIGHTS_KEY")
 var mongoURL = os.Getenv("MONGOURL")
 var teamname = os.Getenv("TEAMNAME")
 var isCosmosDb = strings.Contains(mongoURL, "documents.azure.com")
@@ -37,8 +38,9 @@ var mongoDBSession *mgo.Session
 var mongoDBSessionError error
 var mongoPoolLimit = 25
 
-
+// Application Insights telemetry clients
 var challengeTelemetryClient appinsights.TelemetryClient
+var customTelemetryClient appinsights.TelemetryClient
 
 // Order represents the order json
 type Order struct {
@@ -55,10 +57,25 @@ type Order struct {
 func init() {
 
 	// Init App Insights
-	challengeTelemetryClient = appinsights.NewTelemetryClient(insightskey)
+	challengeTelemetryClient = appinsights.NewTelemetryClient(challengeInsightsKey)
+	challengeTelemetryClient.Context().Tags.Cloud().SetRole("fulfillorder_golang")
+
+	if customInsightsKey != "" {
+		customTelemetryClient = appinsights.NewTelemetryClient(customInsightsKey)
+
+		// Set role instance name globally -- this is usually the
+		// name of the service submitting the telemetry
+		customTelemetryClient.Context().Tags.Cloud().SetRole("fulfillorder_golang")
+	}
 
 	// Let's validate and spool the ENV VARS
 
+	if len(os.Getenv("CHALLENGEAPPINSIGHTS_KEY")) == 0 {
+		log.Print("The environment variable CHALLENGEAPPINSIGHTS_KEY has not been set")
+	} else {
+		log.Print("The environment variable CHALLENGEAPPINSIGHTS_KEY is " + os.Getenv("CHALLENGEAPPINSIGHTS_KEY"))
+	}
+	
 	if len(os.Getenv("MONGOURL")) == 0 {
 		log.Print("The environment variable MONGOURL has not been set")
 	} else {
@@ -79,11 +96,10 @@ func init() {
 	}
 	log.Printf("MongoDB pool limit set to %v. You can override by setting the MONGOPOOL_LIMIT environment variable." , mongoPoolLimit)
 	
-
-
 	url, err := url.Parse(mongoURL)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Problem parsing Mongo URL %s: ",url), err)
+		log.Fatal(fmt.Sprintf("Problem parsing Mongo URL %s: ", url), err)
+		trackException(err)
 	}
 
 	if isCosmosDb {
@@ -99,7 +115,7 @@ func init() {
 	var dialInfo *mgo.DialInfo
 	mongoUsername := ""
 	mongoPassword := ""
-	if url.User!=nil {
+	if url.User != nil {
 		mongoUsername = url.User.Username()
 		mongoPassword, _ = url.User.Password()
 	}
@@ -138,6 +154,7 @@ func init() {
 	mongoDBSession, mongoDBSessionError = mgo.DialWithInfo(dialInfo)
 	if mongoDBSessionError != nil {
 		log.Fatal(fmt.Sprintf("Can't connect to mongo at [%s], go error: ", mongoURL), mongoDBSessionError)
+		trackException(mongoDBSessionError)
 	} else {
 		success = true
 	}
@@ -187,8 +204,9 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 			err = mongoDBCollection.Update(result, change)
 	
 			if err != nil {
-				log.Println("Error processingrecord. Will retry in 3 seconds:", err)
-				  time.Sleep(3 * time.Second) // wait
+				log.Println("Error processing record. Will retry in 3 seconds:", err)
+				trackException(err)
+				time.Sleep(3 * time.Second) // wait
 			} else {
 				log.Println("set status: Processed")
 			}
@@ -203,34 +221,54 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 
 
 	// Track the event for the challenge purposes
-	eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder: - Team Name " + teamname + " db " + db)
+	eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder db " + db)
 	eventTelemetry.Properties["team"] = teamname
-	eventTelemetry.Properties["challenge"] = "4-fulfillorder"
+	eventTelemetry.Properties["sequence"] = "4"
 	eventTelemetry.Properties["type"] = db
+	eventTelemetry.Properties["service"] = "FulfillOrder"
+	eventTelemetry.Properties["orderId"] = order.OrderID
 	challengeTelemetryClient.Track(eventTelemetry)
 	
+	if customTelemetryClient != nil {
+		customTelemetryClient.Track(eventTelemetry)
+	}
 
 	// Let's place on the file system
 	f, err := os.Create("/orders/" + order.OrderID + ".json")
-	check(err)
+	if err != nil {
+		trackException(err)
+	}
 
 	fmt.Fprintf(f, "{", "orderid:", order.OrderID, ",", "status:", "Processed", "}")
 
 	// Issue a `Sync` to flush writes to stable storage.
-	f.Sync()
+	err = f.Sync()
+	if err != nil {
+		log.Println(e)
+		trackException(e)
+	}
+	else {
+		eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder fileshare")
+		eventTelemetry.Properties["team"] = teamname
+		eventTelemetry.Properties["sequence"] = "5"
+		eventTelemetry.Properties["orderId"] = orderId
+		eventTelemetry.Properties["type"] = "fileshare"
+		eventTelemetry.Properties["service"] = "FulfillOrder"
+		challengeTelemetryClient.Track(eventTelemetry)
+		if customTelemetryClient != nil {
+			customTelemetryClient.Track(eventTelemetry)
+		}
+	}
 
 	return order.OrderID
 }
 
-func check(e error) {
-	if e != nil {
-		log.Println("order volume not mounted")
-	} else {
-		// Track the event for the challenge purposes
-		eventTelemetry := appinsights.NewEventTelemetry("ProcessOrder: - Team Name " + teamname + " db " + db)
-		eventTelemetry.Properties["team"] = teamname
-		eventTelemetry.Properties["challenge"] = "5-fileshare"
-		eventTelemetry.Properties["type"] = db
-		challengeTelemetryClient.Track(eventTelemetry)
+func trackException(err error) {
+	if err != nil {
+		log.Println(err)
+		challengeTelemetryClient.TrackException(err)
+		if customTelemetryClient != nil {
+			customTelemetryClient.TrackException(err)
+		}
 	}
 }
