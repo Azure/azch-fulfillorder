@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -32,7 +31,7 @@ var mongoUsername = os.Getenv("MONGOUSERNAME")
 var mongoPassword = os.Getenv("MONGOPASSWORD")
 var mongoSSL = false
 var mongoPort = ""
-var teamname = os.Getenv("TEAMNAME")
+var teamName = os.Getenv("TEAMNAME")
 var isCosmosDb = strings.Contains(mongoHost, "documents.azure.com")
 
 // MongoDB database and collection names
@@ -110,7 +109,7 @@ func init() {
 	log.Printf("\tUsername: %s", mongoUsername)
 	log.Printf("\tPassword: %s", mongoPassword)
 	log.Printf("\tHost: %s", mongoHost)
-	log.Printf("\Port: %s", mongoPort)
+	log.Printf("\tPort: %s", mongoPort)
 	log.Printf("\tDatabase: %s", mongoDatabase)
 	log.Printf("\tSSL: %t", mongoSSL)
 
@@ -207,7 +206,7 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 
 	// Track the event for the challenge purposes
 	eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder db " + db)
-	eventTelemetry.Properties["team"] = teamname
+	eventTelemetry.Properties["team"] = teamName
 	eventTelemetry.Properties["sequence"] = "4"
 	eventTelemetry.Properties["type"] = db
 	eventTelemetry.Properties["service"] = "FulfillOrder"
@@ -233,7 +232,7 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 		trackException(err)
 	} else {
 		eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder fileshare")
-		eventTelemetry.Properties["team"] = teamname
+		eventTelemetry.Properties["team"] = teamName
 		eventTelemetry.Properties["sequence"] = "5"
 		eventTelemetry.Properties["orderId"] = orderId
 		eventTelemetry.Properties["type"] = "fileshare"
