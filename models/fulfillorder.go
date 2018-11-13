@@ -27,7 +27,7 @@ var db string
 var customInsightsKey = os.Getenv("APPINSIGHTS_KEY")
 var challengeInsightsKey = os.Getenv("CHALLENGEAPPINSIGHTS_KEY")
 var mongoHost = os.Getenv("MONGOHOST")
-var mongoUsername = os.Getenv("MONGOUSERNAME")
+var mongoUsername = os.Getenv("MONGOUSER")
 var mongoPassword = os.Getenv("MONGOPASSWORD")
 var mongoSSL = false
 var mongoPort = ""
