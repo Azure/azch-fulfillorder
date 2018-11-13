@@ -25,13 +25,29 @@ ENV CHALLENGEAPPINSIGHTS_KEY=[Challenge Application Insights Key] # Override, if
 ### For MongoDB
 
 ```
-ENV MONGOURL=mongodb://[mongoinstance].[namespace]
+ENV MONGOHOST=<mongo service name>.<namespace>
+```
+
+```
+ENV MONGOUSER=admin
+```
+
+```
+ENV MONGOPASSWORD=<password for MongoDB>
 ```
 
 ### For CosmosDB
 
 ```
-ENV MONGOURL=mongodb://[CosmosDBInstanceName]:[CosmosDBPrimaryPassword]=@[CosmosDBInstanceName].documents.azure.com:10255/?ssl=true&replicaSet=globaldb
+ENV MONGOHOST=<cosmosdb account name>.documents.azure.com
+```
+
+```
+ENV MONGOUSER=<cosmosdb username>
+```
+
+```
+ENV MONGOPASSWORD=<cosmosdb primary password>
 ```
 
 ### File mount

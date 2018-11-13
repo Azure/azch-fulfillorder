@@ -27,9 +27,12 @@ var db string
 
 var customInsightsKey = os.Getenv("APPINSIGHTS_KEY")
 var challengeInsightsKey = os.Getenv("CHALLENGEAPPINSIGHTS_KEY")
-var mongoURL = os.Getenv("MONGOURL")
+var mongoHost = os.Getenv("MONGOHOST")
+var mongoUsername = os.Getenv("MONGOUSERNAME")
+var mongoPassword = os.Getenv("MONGOPASSWORD")
+var mongoSSL = false
 var teamname = os.Getenv("TEAMNAME")
-var isCosmosDb = strings.Contains(mongoURL, "documents.azure.com")
+var isCosmosDb = strings.Contains(mongoHost, "documents.azure.com")
 
 // MongoDB database and collection names
 var mongoDatabaseName = "k8orders"
@@ -69,24 +72,13 @@ func init() {
 	}
 
 	// Let's validate and spool the ENV VARS
-
-	if len(os.Getenv("CHALLENGEAPPINSIGHTS_KEY")) == 0 {
-		log.Print("The environment variable CHALLENGEAPPINSIGHTS_KEY has not been set")
-	} else {
-		log.Print("The environment variable CHALLENGEAPPINSIGHTS_KEY is " + os.Getenv("CHALLENGEAPPINSIGHTS_KEY"))
-	}
-	
-	if len(os.Getenv("MONGOURL")) == 0 {
-		log.Print("The environment variable MONGOURL has not been set")
-	} else {
-		log.Print("The environment variable MONGOURL is " + os.Getenv("MONGOURL"))
-	}
-
-	if len(os.Getenv("TEAMNAME")) == 0 {
-		log.Print("The environment variable TEAMNAME has not been set")
-	} else {
-		log.Print("The environment variable TEAMNAME is " + os.Getenv("TEAMNAME"))
-	}
+	// Validate environment variables
+	validateVariable(customInsightsKey, "APPINSIGHTS_KEY")
+	validateVariable(challengeInsightsKey, "CHALLENGEAPPINSIGHTS_KEY")
+	validateVariable(mongoHost, "MONGOHOST")
+	validateVariable(mongoUsername, "MONGOUSERNAME")
+	validateVariable(mongoPassword, "MONGOPASSWORD")
+	validateVariable(teamName, "TEAMNAME")
 
 	var mongoPoolLimitEnv = os.Getenv("MONGOPOOL_LIMIT")
 	if mongoPoolLimitEnv != "" {
@@ -95,33 +87,22 @@ func init() {
 		}
 	}
 	log.Printf("MongoDB pool limit set to %v. You can override by setting the MONGOPOOL_LIMIT environment variable." , mongoPoolLimit)
-	
-	url, err := url.Parse(mongoURL)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Problem parsing Mongo URL %s: ", url), err)
-		trackException(err)
-	}
 
 	if isCosmosDb {
 		log.Println("Using CosmosDB")
 		db = "CosmosDB"
+		mongoSSL = true
 
 	} else {
 		log.Println("Using MongoDB")
 		db = "MongoDB"
+		mongoSSL = false
 	}
 
 	// Parse the connection string to extract components because the MongoDB driver is peculiar
 	var dialInfo *mgo.DialInfo
-	mongoUsername := ""
-	mongoPassword := ""
-	if url.User != nil {
-		mongoUsername = url.User.Username()
-		mongoPassword, _ = url.User.Password()
-	}
-	mongoHost := url.Host
+	
 	mongoDatabase := mongoDatabaseName // can be anything
-	mongoSSL := strings.Contains(url.RawQuery, "ssl=true")
 
 	log.Printf("\tUsername: %s", mongoUsername)
 	log.Printf("\tPassword: %s", mongoPassword)
@@ -153,7 +134,7 @@ func init() {
 	success := false
 	mongoDBSession, mongoDBSessionError = mgo.DialWithInfo(dialInfo)
 	if mongoDBSessionError != nil {
-		log.Fatal(fmt.Sprintf("Can't connect to mongo at [%s], go error: ", mongoURL), mongoDBSessionError)
+		log.Fatal(fmt.Sprintf("Can't connect to mongo at [%s], go error: ", mongoHost), mongoDBSessionError)
 		trackException(mongoDBSessionError)
 	} else {
 		success = true
@@ -260,6 +241,15 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 	}
 
 	return order.OrderID
+}
+
+// Logs out value of a variable
+func validateVariable(value string, envName string) {
+	if len(value) == 0 {
+		log.Printf("The environment variable %s has not been set", envName)
+	} else {
+		log.Printf("The environment variable %s is %s", envName, value)
+	}
 }
 
 func trackException(err error) {
