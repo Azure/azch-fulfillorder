@@ -31,6 +31,7 @@ var mongoHost = os.Getenv("MONGOHOST")
 var mongoUsername = os.Getenv("MONGOUSERNAME")
 var mongoPassword = os.Getenv("MONGOPASSWORD")
 var mongoSSL = false
+var mongoPort = ""
 var teamname = os.Getenv("TEAMNAME")
 var isCosmosDb = strings.Contains(mongoHost, "documents.azure.com")
 
@@ -92,11 +93,13 @@ func init() {
 		log.Println("Using CosmosDB")
 		db = "CosmosDB"
 		mongoSSL = true
+		mongoPort = ":10255"
 
 	} else {
 		log.Println("Using MongoDB")
 		db = "MongoDB"
 		mongoSSL = false
+		mongoPort = ""
 	}
 
 	// Parse the connection string to extract components because the MongoDB driver is peculiar
@@ -107,12 +110,13 @@ func init() {
 	log.Printf("\tUsername: %s", mongoUsername)
 	log.Printf("\tPassword: %s", mongoPassword)
 	log.Printf("\tHost: %s", mongoHost)
+	log.Printf("\Port: %s", mongoPort)
 	log.Printf("\tDatabase: %s", mongoDatabase)
 	log.Printf("\tSSL: %t", mongoSSL)
 
 	if mongoSSL {
 		dialInfo = &mgo.DialInfo{
-			Addrs:    []string{mongoHost},
+			Addrs:    []string{mongoHost+mongoPort},
 			Timeout:  60 * time.Second,
 			Database: mongoDatabase, // It can be anything
 			Username: mongoUsername, // Username
@@ -123,7 +127,7 @@ func init() {
 		}
 	} else {
 		dialInfo = &mgo.DialInfo{
-			Addrs:    []string{mongoHost},
+			Addrs:    []string{mongoHost+mongoPort},
 			Timeout:  60 * time.Second,
 			Database: mongoDatabase, // It can be anything
 			Username: mongoUsername, // Username
@@ -134,7 +138,7 @@ func init() {
 	success := false
 	mongoDBSession, mongoDBSessionError = mgo.DialWithInfo(dialInfo)
 	if mongoDBSessionError != nil {
-		log.Fatal(fmt.Sprintf("Can't connect to mongo at [%s], go error: ", mongoHost), mongoDBSessionError)
+		log.Fatal(fmt.Sprintf("Can't connect to mongo at [%s], go error: ", mongoHost+mongoPort), mongoDBSessionError)
 		trackException(mongoDBSessionError)
 	} else {
 		success = true
