@@ -218,8 +218,10 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 	}
 
 	// Let's place on the file system
+	log.Println("Attempting to write order to file share")
 	f, err := os.Create("/orders/" + order.OrderID + ".json")
 	if err != nil {
+		log.Println("Couldn't write order to file share: " + err)		
 		trackException(err)
 	}
 
