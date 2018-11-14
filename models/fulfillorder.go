@@ -24,8 +24,6 @@ var (
 
 var db string
 
-var customInsightsKey = os.Getenv("APPINSIGHTS_KEY")
-var challengeInsightsKey = os.Getenv("CHALLENGEAPPINSIGHTS_KEY")
 var mongoHost = os.Getenv("MONGOHOST")
 var mongoUsername = os.Getenv("MONGOUSER")
 var mongoPassword = os.Getenv("MONGOPASSWORD")
@@ -42,8 +40,8 @@ var mongoDBSessionError error
 var mongoPoolLimit = 25
 
 // Application Insights telemetry clients
-var challengeTelemetryClient appinsights.TelemetryClient
-var customTelemetryClient appinsights.TelemetryClient
+var ChallengeTelemetryClient appinsights.TelemetryClient
+var CustomTelemetryClient appinsights.TelemetryClient
 
 // Order represents the order json
 type Order struct {
@@ -59,22 +57,8 @@ type Order struct {
 
 func init() {
 
-	// Init App Insights
-	challengeTelemetryClient = appinsights.NewTelemetryClient(challengeInsightsKey)
-	challengeTelemetryClient.Context().Tags.Cloud().SetRole("fulfillorder_golang")
-
-	if customInsightsKey != "" {
-		customTelemetryClient = appinsights.NewTelemetryClient(customInsightsKey)
-
-		// Set role instance name globally -- this is usually the
-		// name of the service submitting the telemetry
-		customTelemetryClient.Context().Tags.Cloud().SetRole("fulfillorder_golang")
-	}
-
 	// Let's validate and spool the ENV VARS
 	// Validate environment variables
-	validateVariable(customInsightsKey, "APPINSIGHTS_KEY")
-	validateVariable(challengeInsightsKey, "CHALLENGEAPPINSIGHTS_KEY")
 	validateVariable(mongoHost, "MONGOHOST")
 	validateVariable(mongoUsername, "MONGOUSERNAME")
 	validateVariable(mongoPassword, "MONGOPASSWORD")
@@ -159,7 +143,7 @@ func init() {
 	mongoDBSession.SetPoolLimit(mongoPoolLimit)
 }
 
-func ProcessOrderInMongoDB(order Order) (orderId string) {
+func ProcessOrderInMongoDB(order Order) bool {
 	log.Println("ProcessOrderInMongoDB: " + order.OrderID)
 
 	mongoDBSessionCopy := mongoDBSession.Copy()
@@ -199,10 +183,9 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 		  
 		if err != nil {
 			log.Println("Error updating record after retrying 3 times: ", err)
-			return
+			return false
 		}
 	}
-
 
 	// Track the event for the challenge purposes
 	eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder db " + db)
@@ -211,27 +194,27 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 	eventTelemetry.Properties["type"] = db
 	eventTelemetry.Properties["service"] = "FulfillOrder"
 	eventTelemetry.Properties["orderId"] = order.OrderID
-	challengeTelemetryClient.Track(eventTelemetry)
-	
-	if customTelemetryClient != nil {
-		customTelemetryClient.Track(eventTelemetry)
-	}
+	trackEvent(eventTelemetry)
 
+	return true
+}
+
+func WriteToFileSystem(orderId string) bool {
 	// Let's place on the file system
 	log.Println("Attempting to write order to file share")
-	f, err := os.Create("/orders/" + order.OrderID + ".json")
+	f, err := os.Create("/orders/" + orderId + ".json")
 	if err != nil {
-		log.Println("Couldn't write order to file share: " + err)		
+		log.Println("Couldn't write order to file share")		
 		trackException(err)
+		return false
 	}
-
-	fmt.Fprintf(f, "{", "orderid:", order.OrderID, ",", "status:", "Processed", "}")
 
 	// Issue a `Sync` to flush writes to stable storage.
 	err = f.Sync()
 	if err != nil {
 		log.Println(err)
 		trackException(err)
+		return false
 	} else {
 		eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder fileshare")
 		eventTelemetry.Properties["team"] = teamName
@@ -239,13 +222,12 @@ func ProcessOrderInMongoDB(order Order) (orderId string) {
 		eventTelemetry.Properties["orderId"] = orderId
 		eventTelemetry.Properties["type"] = "fileshare"
 		eventTelemetry.Properties["service"] = "FulfillOrder"
-		challengeTelemetryClient.Track(eventTelemetry)
-		if customTelemetryClient != nil {
-			customTelemetryClient.Track(eventTelemetry)
-		}
+		trackEvent(eventTelemetry)
 	}
 
-	return order.OrderID
+	fmt.Fprintf(f, "{", "orderid:", orderId, ",", "status:", "Processed", "}")
+
+	return true
 }
 
 // Logs out value of a variable
@@ -257,12 +239,19 @@ func validateVariable(value string, envName string) {
 	}
 }
 
+func trackEvent(eventTelemetry *appinsights.EventTelemetry) {
+		ChallengeTelemetryClient.Track(eventTelemetry)
+		if CustomTelemetryClient != nil {
+			CustomTelemetryClient.Track(eventTelemetry)
+		}
+}
+
 func trackException(err error) {
 	if err != nil {
 		log.Println(err)
-		challengeTelemetryClient.TrackException(err)
-		if customTelemetryClient != nil {
-			customTelemetryClient.TrackException(err)
+		ChallengeTelemetryClient.TrackException(err)
+		if CustomTelemetryClient != nil {
+			CustomTelemetryClient.TrackException(err)
 		}
 	}
 }
