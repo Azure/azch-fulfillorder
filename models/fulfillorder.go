@@ -156,7 +156,10 @@ func ProcessOrderInMongoDB(order Order) bool {
 	result := Order{}
 	log.Println("Looking for ", "{", "orderid:", order.OrderID, ",", "status:", "Open", "}")
 
-	err := mongoDBCollection.Find(bson.M{"orderid": order.OrderID, "status": "Open"}).One(&result)
+	// Unserialize OrderIDHex to BSON ObjectId
+	orderIDObjectID := bson.ObjectIdHex(order.OrderID)
+
+	err := mongoDBCollection.Find(bson.M{"_id": orderIDObjectID, "status": "Open"}).One(&result)
 
 	if err != nil {
 		log.Println("Not found (already processed) or error: ", err)
