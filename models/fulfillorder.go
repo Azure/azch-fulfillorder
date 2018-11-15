@@ -158,6 +158,7 @@ func ProcessOrderInMongoDB(order Order) bool {
 
 	// Unserialize OrderIDHex to BSON ObjectId
 	orderIDObjectID := bson.ObjectIdHex(order.OrderID)
+	log.Println("Looking for ", "{", "_id:", orderIDObjectID, ",", "status:", "Open", "}")
 
 	err := mongoDBCollection.Find(bson.M{"_id": orderIDObjectID, "status": "Open"}).One(&result)
 
