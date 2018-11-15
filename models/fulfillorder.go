@@ -49,7 +49,6 @@ type Order struct {
 	EmailAddress      string  `required:"true" description:"Email address of the customer"`
 	PreferredLanguage string  `required:"false" description:"Preferred Language of the customer"`
 	Product           string  `required:"false" description:"Product ordered by the customer"`
-	Partition         string  `required:"false" description:"MongoDB Partition. Generated."`
 	Total             float64 `required:"false" description:"Order total"`
 	Source            string  `required:"false" description:"Source channel e.g. App Service, Container instance, K8 cluster etc"`
 	Status            string  `required:"true" description:"Order Status"`
