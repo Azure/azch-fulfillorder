@@ -161,7 +161,7 @@ func ProcessOrderInMongoDB(order Order) bool {
 
 	if err != nil {
 		log.Println("Not found (already processed) or error: ", err)
-		if err == "not found" {
+		if err.Error() == "not found" {
 			return true // no need to keep it around - return true so that it gets removed from the service bus
 		}
 	} else {
