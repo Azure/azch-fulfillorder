@@ -60,7 +60,10 @@ func (this *OrderController) Post() {
 	requestStartTime := time.Now()
 
 	processedInMongoDB := models.ProcessOrderInMongoDB(ob)
-	writtenToFileSystem := models.WriteToFileSystem(ob.OrderID)
+	writtenToFileSystem := false
+	if processedInMongoDB {
+		writtenToFileSystem = models.WriteToFileSystem(ob.OrderID)
+	}
 
 	trackRequest(requestStartTime, time.Now(), processedInMongoDB && writtenToFileSystem)
 
