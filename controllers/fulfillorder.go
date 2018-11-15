@@ -49,8 +49,8 @@ func init() {
 // @Failure 403 body is empty
 // @router / [post]
 func (this *OrderController) Post() {
-	var ob models.Order
-	json.Unmarshal(this.Ctx.Input.RequestBody, &ob)
+	var processOrder models.ProcessOrder
+	json.Unmarshal(this.Ctx.Input.RequestBody, &processOrder)
 
 	// Inject telemetry clients
 	models.CustomTelemetryClient = customTelemetryClient;
@@ -59,15 +59,15 @@ func (this *OrderController) Post() {
 	// Track the request
 	requestStartTime := time.Now()
 
-	processedInMongoDB := models.ProcessOrderInMongoDB(ob)
+	processedInMongoDB := models.ProcessOrderInMongoDB(processOrder.OrderID)
 	writtenToFileSystem := false
 	if processedInMongoDB {
-		writtenToFileSystem = models.WriteToFileSystem(ob.OrderID)
+		writtenToFileSystem = models.WriteToFileSystem(processOrder.OrderID)
 	}
 
 	trackRequest(requestStartTime, time.Now(), processedInMongoDB && writtenToFileSystem)
 
-	this.Data["json"] = map[string]string{"orderId": ob.OrderID, "processedInMongoDB": fmt.Sprint(processedInMongoDB), "writtenToFileSystem": fmt.Sprint(writtenToFileSystem)}
+	this.Data["json"] = map[string]string{"orderId": processOrder.OrderID, "processedInMongoDB": fmt.Sprint(processedInMongoDB), "writtenToFileSystem": fmt.Sprint(writtenToFileSystem)}
 	this.ServeJSON()
 }
 

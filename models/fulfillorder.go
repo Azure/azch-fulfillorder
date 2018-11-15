@@ -43,10 +43,14 @@ var mongoPoolLimit = 25
 var ChallengeTelemetryClient appinsights.TelemetryClient
 var CustomTelemetryClient appinsights.TelemetryClient
 
+// ProcessOrder represents the process order json
+type ProcessOrder struct {
+	OrderID string `json:"orderId"`
+}
+
 // Order represents the order json
 type Order struct {
 	ID           			bson.ObjectId		`json:"id" bson:"_id,omitempty"`
-	OrderID           string  				`json:"orderId"`
 	EmailAddress      string  				`json:"emailAddress"`
 	Product           string  				`json:"product"`
 	Total             float64 				`json:"total"`
@@ -141,8 +145,8 @@ func init() {
 	mongoDBSession.SetPoolLimit(mongoPoolLimit)
 }
 
-func ProcessOrderInMongoDB(order Order) bool {
-	log.Println("ProcessOrderInMongoDB: " + order.OrderID)
+func ProcessOrderInMongoDB(orderID string) bool {
+	log.Println("ProcessOrderInMongoDB: " + orderID)
 
 	mongoDBSessionCopy := mongoDBSession.Copy()
 	defer mongoDBSessionCopy.Close()
@@ -153,10 +157,9 @@ func ProcessOrderInMongoDB(order Order) bool {
 
 	// Get Document from collection
 	result := Order{}
-	log.Println("Looking for ", "{", "orderid:", order.OrderID, ",", "status:", "Open", "}")
 
 	// Unserialize OrderIDHex to BSON ObjectId
-	orderIDObjectID := bson.ObjectIdHex(order.OrderID)
+	orderIDObjectID := bson.ObjectIdHex(orderID)
 	log.Println("Looking for ", "{", "_id:", orderIDObjectID, ",", "status:", "Open", "}")
 
 	err := mongoDBCollection.Find(bson.M{"_id": orderIDObjectID, "status": "Open"}).One(&result)
@@ -197,16 +200,16 @@ func ProcessOrderInMongoDB(order Order) bool {
 	eventTelemetry.Properties["sequence"] = "4"
 	eventTelemetry.Properties["type"] = db
 	eventTelemetry.Properties["service"] = "FulfillOrder"
-	eventTelemetry.Properties["orderId"] = order.OrderID
+	eventTelemetry.Properties["orderId"] = orderID
 	trackEvent(eventTelemetry)
 
 	return true
 }
 
-func WriteToFileSystem(orderId string) bool {
+func WriteToFileSystem(orderID string) bool {
 	// Let's place on the file system
 	log.Println("Attempting to write order to file share")
-	f, err := os.Create("/orders/" + orderId + ".json")
+	f, err := os.Create("/orders/" + orderID + ".json")
 	if err != nil {
 		log.Println("Couldn't write order to file share")		
 		trackException(err)
@@ -223,13 +226,13 @@ func WriteToFileSystem(orderId string) bool {
 		eventTelemetry := appinsights.NewEventTelemetry("FulfillOrder fileshare")
 		eventTelemetry.Properties["team"] = teamName
 		eventTelemetry.Properties["sequence"] = "5"
-		eventTelemetry.Properties["orderId"] = orderId
+		eventTelemetry.Properties["orderId"] = orderID
 		eventTelemetry.Properties["type"] = "fileshare"
 		eventTelemetry.Properties["service"] = "FulfillOrder"
 		trackEvent(eventTelemetry)
 	}
 
-	fmt.Fprintf(f, "{", "orderid:", orderId, ",", "status:", "Processed", "}")
+	fmt.Fprintf(f, "{", "orderid:", orderID, ",", "status:", "Processed", "}")
 
 	return true
 }
